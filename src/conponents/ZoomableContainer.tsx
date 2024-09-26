@@ -6,7 +6,6 @@ interface ZoomableContainerProps {
 
 const ZoomableContainer: React.FC<ZoomableContainerProps> = ({ children }) => {
   const [zoom, setZoom] = useState(1);
-
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);

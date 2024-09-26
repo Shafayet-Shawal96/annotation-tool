@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import ZoomableContainer from "./ZoomableContainer";
+import ZoomableContainer from "./conponents/ZoomableContainer";
+import PositionHelper from "./conponents/PositionHelper";
 
 type Position = {
   x: number;
@@ -7,9 +8,11 @@ type Position = {
 };
 
 function App() {
+  const [imageHeight, setImageHeight] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState<Position>({
-    x: window.innerWidth / 2 - 300,
-    y: window.innerHeight / 2 - 450,
+    x: 0,
+    y: 0,
   });
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState<Position>({ x: 0, y: 0 });
@@ -25,6 +28,10 @@ function App() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    setMousePosition({
+      x: e.pageX,
+      y: e.pageY,
+    });
     if (!e.ctrlKey) return;
     if (dragging) {
       setPosition({
@@ -39,6 +46,23 @@ function App() {
   };
 
   useEffect(() => {
+    window.scrollTo({
+      top: window.innerHeight * 1.5 - window.innerHeight / 2,
+      left: window.innerWidth * 1.5 - window.innerWidth / 2,
+    });
+
+    const img = new Image();
+    img.src = "/annotate.jpg";
+
+    img.onload = () => {
+      const height = (img.naturalHeight / img.naturalWidth) * 600;
+      setPosition({
+        x: (window.innerWidth * 3) / 2 - 300,
+        y: (window.innerHeight * 3) / 2 - height / 2,
+      });
+      setImageHeight(height);
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey) {
         setIsCtrlPressed(true);
@@ -65,24 +89,25 @@ function App() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="bg-[#374151] w-screen h-screen relative overflow-hidden"
+      className="bg-[#374151] w-[300vw] h-[300vh] relative overflow-hidden"
     >
       <ZoomableContainer>
         <div
           onMouseDown={handleMouseDown}
-          className="absolute w-[600px] h-[900px] cursor-grab"
+          className="absolute w-[600px] cursor-grab"
           style={{
             top: `${position.y}px`,
             left: `${position.x}px`,
+            height: `${imageHeight}px`,
             backgroundImage: `url('/annotate.jpg')`,
             backgroundRepeat: "no-repeat",
             backgroundSize: "contain",
-            backgroundPosition: "center",
-            cursor: isCtrlPressed ? "grab" : "auto",
+            cursor: isCtrlPressed ? "grab" : "crosshair",
             opacity: isCtrlPressed ? "70%" : "100%",
           }}
         ></div>
       </ZoomableContainer>
+      {!isCtrlPressed && <PositionHelper mousePosition={mousePosition} />}
     </div>
   );
 }

@@ -1,47 +1,96 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useRef } from "react";
 
-const CanvasZoom: React.FC = () => {
+type Box = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const DrawingApp: React.FC = () => {
+  const [boxes, setBoxes] = useState<Box[]>([]);
+  const [currentBox, setCurrentBox] = useState<Box | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scale, setScale] = useState(1); // State to manage the zoom level
+  const isDrawing = useRef(false);
 
-  useEffect(() => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top;
+
+      setCurrentBox({
+        x: startX,
+        y: startY,
+        width: 0,
+        height: 0,
+      });
+
+      isDrawing.current = true;
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing.current || !currentBox) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+
+      setCurrentBox({
+        ...currentBox,
+        width: endX - currentBox.x,
+        height: endY - currentBox.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (currentBox) {
+      setBoxes([...boxes, currentBox]);
+      setCurrentBox(null);
+      isDrawing.current = false;
+    }
+  };
+
+  const drawBoxes = (ctx: CanvasRenderingContext2D) => {
+    boxes.forEach((box) => {
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
+    });
+
+    if (currentBox) {
+      ctx.strokeRect(
+        currentBox.x,
+        currentBox.y,
+        currentBox.width,
+        currentBox.height
+      );
+    }
+  };
+
+  React.useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
       const context = canvas.getContext("2d");
       if (context) {
-        // Clear the canvas
         context.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Apply the scale transformation for zoom effect
-        context.save(); // Save the current state of the context
-        context.scale(scale, scale);
-
-        // Draw content (this example draws a simple rectangle)
-        context.fillStyle = "blue";
-        context.fillRect(50, 50, 200, 100); // Adjust position as needed
-
-        context.restore(); // Restore the context to default state
+        drawBoxes(context);
       }
     }
-  }, [scale]); // Re-run whenever scale changes
-
-  const handleZoomIn = () => setScale((prev) => Math.min(prev * 1.2, 5)); // Maximum zoom
-  const handleZoomOut = () => setScale((prev) => Math.max(prev / 1.2, 0.2)); // Minimum zoom
+  });
 
   return (
-    <div>
+    <div className="bg-blue-400">
       <canvas
         ref={canvasRef}
-        width={500}
-        height={500}
-        style={{ border: "1px solid black" }}
+        className="w-full h-full"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
       />
-      <div>
-        <button onClick={handleZoomIn}>Zoom In</button>
-        <button onClick={handleZoomOut}>Zoom Out</button>
-      </div>
     </div>
   );
 };
 
-export default CanvasZoom;
+export default DrawingApp;

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 // import Test from "./Test.tsx";
+
 const preventZoom = (event: WheelEvent | KeyboardEvent) => {
   if (event.ctrlKey || (event as WheelEvent).deltaY) {
     if (event.ctrlKey) {
