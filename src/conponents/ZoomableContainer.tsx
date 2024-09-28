@@ -2,10 +2,15 @@ import React, { useState, useRef, useCallback } from "react";
 
 interface ZoomableContainerProps {
   children: React.ReactNode;
+  zoom: number;
+  setZoom: React.Dispatch<React.SetStateAction<number>>;
 }
 
-const ZoomableContainer: React.FC<ZoomableContainerProps> = ({ children }) => {
-  const [zoom, setZoom] = useState(1);
+const ZoomableContainer: React.FC<ZoomableContainerProps> = ({
+  children,
+  zoom,
+  setZoom,
+}) => {
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -13,7 +18,6 @@ const ZoomableContainer: React.FC<ZoomableContainerProps> = ({ children }) => {
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
       if (!e.ctrlKey) return;
-      e.preventDefault();
 
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -21,7 +25,7 @@ const ZoomableContainer: React.FC<ZoomableContainerProps> = ({ children }) => {
         const mouseY = e.clientY - rect.top;
 
         const deltaZoom = -Math.sign(e.deltaY) * 0.1;
-        const newZoom = Math.max(1, Math.min(5, zoom + deltaZoom));
+        const newZoom = Math.round(Math.max(1, Math.min(7, zoom + deltaZoom)));
 
         const scaleFactor = newZoom / zoom;
         const newPanX = mouseX - (mouseX - panX) * scaleFactor;

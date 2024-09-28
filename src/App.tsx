@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ZoomableContainer from "./conponents/ZoomableContainer";
 import PositionHelper from "./conponents/PositionHelper";
+import AnnotateBoxContainer from "./conponents/AnnotateBoxContainer";
 
 type Position = {
   x: number;
@@ -14,9 +15,13 @@ function App() {
     x: 0,
     y: 0,
   });
+  const [scale, setScale] = useState(1);
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState<Position>({ x: 0, y: 0 });
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [activity, setActivity] = useState<
+    "" | "isDrawing" | "isDragging" | "isResizing"
+  >("");
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (!e.ctrlKey) return;
@@ -47,8 +52,8 @@ function App() {
 
   useEffect(() => {
     window.scrollTo({
-      top: window.innerHeight * 1.5 - window.innerHeight / 2,
-      left: window.innerWidth * 1.5 - window.innerWidth / 2,
+      top: window.innerHeight / 2,
+      left: window.innerWidth / 2,
     });
 
     const img = new Image();
@@ -57,8 +62,8 @@ function App() {
     img.onload = () => {
       const height = (img.naturalHeight / img.naturalWidth) * 600;
       setPosition({
-        x: (window.innerWidth * 3) / 2 - 300,
-        y: (window.innerHeight * 3) / 2 - height / 2,
+        x: window.innerWidth - 300,
+        y: window.innerHeight - height / 2,
       });
       setImageHeight(height);
     };
@@ -89,9 +94,9 @@ function App() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="bg-[#374151] w-[300vw] h-[300vh] relative overflow-hidden"
+      className="bg-[#374151] w-[200vw] h-[200vh] relative overflow-hidden cursor-crosshair"
     >
-      <ZoomableContainer>
+      <ZoomableContainer zoom={scale} setZoom={setScale}>
         <div
           onMouseDown={handleMouseDown}
           className="absolute w-[600px] cursor-grab"
@@ -105,9 +110,18 @@ function App() {
             cursor: isCtrlPressed ? "grab" : "crosshair",
             opacity: isCtrlPressed ? "70%" : "100%",
           }}
-        ></div>
+        >
+          <AnnotateBoxContainer
+            scale={scale}
+            activity={activity}
+            setActivity={setActivity}
+            isCtrlPressed={isCtrlPressed}
+          />
+        </div>
       </ZoomableContainer>
-      {!isCtrlPressed && <PositionHelper mousePosition={mousePosition} />}
+      {!isCtrlPressed && activity === "" && (
+        <PositionHelper mousePosition={mousePosition} />
+      )}
     </div>
   );
 }
