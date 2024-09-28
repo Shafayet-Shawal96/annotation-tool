@@ -23,21 +23,17 @@ function AnnotateBoxContainer({
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [currentBox, setCurrentBox] = useState<Box | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const selectedBoxRef = useRef<Box | null>(null);
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    // e.stopPropagation();
+    e.stopPropagation();
 
     if (activity == "" && containerRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
-      console.log(
-        scale,
-        e.clientX,
-        containerRect.left,
-        e.clientX - containerRect.left
-      );
       setCurrentBox({
         id: boxes.length + 1,
-        x: e.clientX - containerRect.left,
-        y: e.clientX - containerRect.top,
+        x: (e.clientX - containerRect.left) / scale,
+        y: (e.clientX - containerRect.top) / scale,
         width: 0,
         height: 0,
       });
@@ -51,11 +47,17 @@ function AnnotateBoxContainer({
       if (activity !== "" && containerRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect();
         const currentX = Math.max(
-          Math.min(e.clientX - containerRect.left, containerRect.width),
+          Math.min(
+            (e.clientX - containerRect.left) / scale,
+            containerRect.width
+          ),
           0
         );
         const currentY = Math.max(
-          Math.min(e.clientY - containerRect.top, containerRect.height),
+          Math.min(
+            (e.clientY - containerRect.top) / scale,
+            containerRect.height
+          ),
           0
         );
 
@@ -68,9 +70,41 @@ function AnnotateBoxContainer({
             y: currentY - currentBox.y < 0 ? currentY : currentBox.y,
           });
         }
+
+        if (activity === "isDragging" && selectedBoxRef.current) {
+          const deltaX = e.movementX / scale;
+          const deltaY = e.movementY / scale;
+
+          setBoxes((prevBoxes) =>
+            prevBoxes.map((box) => {
+              if (box.id === selectedBoxRef.current?.id) {
+                const newX = Math.max(
+                  0,
+                  Math.min(
+                    box.x + deltaX,
+                    containerRect.width / scale - Math.abs(box.width)
+                  )
+                );
+                const newY = Math.max(
+                  0,
+                  Math.min(
+                    box.y + deltaY,
+                    containerRect.height / scale - Math.abs(box.height)
+                  )
+                );
+                return {
+                  ...box,
+                  x: newX,
+                  y: newY,
+                };
+              }
+              return box;
+            })
+          );
+        }
       }
     },
-    [activity, currentBox, setCurrentBox]
+    [activity, currentBox, scale, setCurrentBox]
   );
 
   const handleMouseUp = () => {
@@ -80,6 +114,17 @@ function AnnotateBoxContainer({
       setCurrentBox(null);
       setActivity("");
     }
+    if (activity === "isDragging") {
+      setActivity("");
+      selectedBoxRef.current = null;
+    }
+  };
+
+  const handleBoxMouseDown = (box: Box, e: React.MouseEvent) => {
+    if (!e.ctrlKey) return;
+    e.stopPropagation();
+    setActivity("isDragging");
+    selectedBoxRef.current = box;
   };
 
   return (
@@ -88,11 +133,12 @@ function AnnotateBoxContainer({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      className="w-full h-full relative"
+      className="w-full h-full relative parent"
     >
       {boxes.map((box) => (
         <div
           key={box.id}
+          onMouseDown={(e) => handleBoxMouseDown(box, e)}
           style={{
             position: "absolute",
             left: box.x,
@@ -101,6 +147,7 @@ function AnnotateBoxContainer({
             height: Math.abs(box.height),
             backgroundColor: "rgba(0, 150, 255, 0.3)",
             border: "1px solid #0096ff",
+            zIndex: 10,
           }}
         />
       ))}
@@ -114,6 +161,7 @@ function AnnotateBoxContainer({
             height: Math.abs(currentBox.height),
             backgroundColor: "rgba(0, 150, 255, 0.3)",
             border: "1px dashed #0096ff",
+            zIndex: 10,
           }}
         />
       )}

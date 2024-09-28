@@ -25,7 +25,7 @@ const ZoomableContainer: React.FC<ZoomableContainerProps> = ({
         const mouseY = e.clientY - rect.top;
 
         const deltaZoom = -Math.sign(e.deltaY) * 0.1;
-        const newZoom = Math.round(Math.max(1, Math.min(7, zoom + deltaZoom)));
+        const newZoom = Math.max(1, Math.min(7, zoom + deltaZoom));
 
         const scaleFactor = newZoom / zoom;
         const newPanX = mouseX - (mouseX - panX) * scaleFactor;
