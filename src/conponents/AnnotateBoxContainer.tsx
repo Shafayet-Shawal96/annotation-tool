@@ -26,6 +26,7 @@ function AnnotateBoxContainer({
   const selectedBoxRef = useRef<Box | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.ctrlKey) return;
     e.stopPropagation();
 
     if (activity == "" && containerRef.current) {
@@ -109,7 +110,6 @@ function AnnotateBoxContainer({
 
   const handleMouseUp = () => {
     if (activity === "isDrawing" && currentBox) {
-      console.log(currentBox);
       setBoxes((prev) => [...prev, currentBox]);
       setCurrentBox(null);
       setActivity("");
