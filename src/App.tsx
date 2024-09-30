@@ -1,12 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ZoomableContainer from "./conponents/ZoomableContainer";
 import PositionHelper from "./conponents/PositionHelper";
-import AnnotateBoxContainer from "./conponents/AnnotateBoxContainer";
+import { classess } from "./utils/variables";
+// import AnnotateBoxContainer from "./conponents/AnnotateBoxContainer";
 
 type Position = {
   x: number;
   y: number;
 };
+
+interface Box {
+  id: number;
+  top_x: number;
+  top_y: number;
+  bottom_x: number;
+  bottom_y: number;
+  name: string;
+  color: string;
+}
 
 function App() {
   const [imageHeight, setImageHeight] = useState(0);
@@ -22,6 +33,52 @@ function App() {
   const [activity, setActivity] = useState<
     "" | "isDrawing" | "isDragging" | "isResizing"
   >("");
+  const [showclasses, setShowClasses] = useState(true);
+  const [boxes, setBoxes] = useState<Box[]>([]);
+  const [currentBox, setCurrentBox] = useState<Box | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedBox, setSelectedBox] = useState<Box | null>(null);
+  const [selectedClass, setSelectedClass] = useState(0);
+
+  const handleMouseDownParent = (e: React.MouseEvent) => {
+    if (e.ctrlKey) return;
+    e.stopPropagation();
+
+    if (activity == "" && containerRef.current) {
+      setSelectedBox(null);
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - containerRect.left;
+      const y = e.clientY - containerRect.top;
+
+      setCurrentBox({
+        id: boxes.length + 1,
+        color: classess[selectedClass].color,
+        name: classess[selectedClass].name,
+        top_x:
+          (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
+          scale,
+        top_y:
+          (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
+          scale,
+        bottom_x:
+          (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
+          scale,
+        bottom_y:
+          (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
+          scale,
+      });
+
+      setActivity("isDrawing");
+    }
+  };
+
+  const handleBoxMouseDown = (box: Box, e: React.MouseEvent) => {
+    if (!e.ctrlKey) return;
+
+    e.stopPropagation();
+    setActivity("isDragging");
+    setSelectedBox(box);
+  };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (!e.ctrlKey) return;
@@ -33,21 +90,112 @@ function App() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (activity !== "" && containerRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const currentX = Math.max(
+        Math.min((e.clientX - containerRect.left) / scale, containerRect.width),
+        0
+      );
+      const currentY = Math.max(
+        Math.min((e.clientY - containerRect.top) / scale, containerRect.height),
+        0
+      );
+
+      if (activity === "isDrawing" && currentBox && !e.ctrlKey) {
+        if (currentX > currentBox.top_x && currentY > currentBox.top_y) {
+          setCurrentBox({
+            ...currentBox,
+            bottom_x: currentX,
+            bottom_y: currentY,
+          });
+        } else if (currentX < currentBox.top_x && currentY < currentBox.top_y) {
+          setCurrentBox({
+            ...currentBox,
+            top_x: currentX,
+            top_y: currentY,
+          });
+        } else if (currentX > currentBox.top_x && currentY < currentBox.top_y) {
+          setCurrentBox({
+            ...currentBox,
+            bottom_x: currentX,
+            top_y: currentY,
+          });
+        } else if (currentX < currentBox.top_x && currentY > currentBox.top_y) {
+          setCurrentBox({
+            ...currentBox,
+            top_x: currentX,
+            bottom_y: currentY,
+          });
+        }
+      }
+
+      if (activity === "isDragging" && selectedBox && e.ctrlKey) {
+        const deltaX = e.movementX / scale;
+        const deltaY = e.movementY / scale;
+
+        setBoxes((prevBoxes) =>
+          prevBoxes.map((box) => {
+            if (box.id === selectedBox?.id) {
+              const newX = Math.max(
+                0,
+                Math.min(
+                  box.top_x + deltaX,
+                  containerRect.width / scale -
+                    Math.abs(box.top_x - box.bottom_x)
+                )
+              );
+              const newY = Math.max(
+                0,
+                Math.min(
+                  box.top_y + deltaY,
+                  containerRect.height / scale -
+                    Math.abs(box.top_y - box.bottom_y)
+                )
+              );
+              return {
+                ...box,
+                top_x: newX,
+                top_y: newY,
+                bottom_x: box.bottom_x - (box.top_x - newX),
+                bottom_y: box.bottom_y - (box.top_y - newY),
+              };
+            }
+            return box;
+          })
+        );
+      }
+    }
+    if (e.ctrlKey && dragging) {
+      setPosition({
+        x: e.clientX - offset.x,
+
+        y: e.clientY - offset.y,
+      });
+    }
+
     setMousePosition({
       x: e.pageX,
       y: e.pageY,
     });
-    if (!e.ctrlKey) return;
-    if (dragging) {
-      setPosition({
-        x: e.clientX - offset.x,
-        y: e.clientY - offset.y,
-      });
-    }
   };
 
   const handleMouseUp = () => {
     setDragging(false);
+    if (activity === "isDrawing" && currentBox) {
+      if (
+        !(
+          currentBox?.top_x === currentBox?.bottom_x &&
+          currentBox?.top_y === currentBox?.bottom_y
+        )
+      ) {
+        setBoxes((prev) => [...prev, currentBox]);
+      }
+      setCurrentBox(null);
+      setActivity("");
+    }
+    if (activity === "isDragging") {
+      setActivity("");
+    }
   };
 
   useEffect(() => {
@@ -72,6 +220,10 @@ function App() {
       if (event.ctrlKey) {
         setIsCtrlPressed(true);
       }
+      const validKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+      if (validKeys.includes(event.key)) {
+        setSelectedClass(+event.key - 1);
+      }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -90,38 +242,156 @@ function App() {
   }, []);
 
   return (
-    <div
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      className="bg-[#374151] w-[200vw] h-[200vh] relative overflow-hidden cursor-crosshair"
-    >
-      <ZoomableContainer zoom={scale} setZoom={setScale}>
-        <div
-          onMouseDown={handleMouseDown}
-          className="absolute w-[600px] cursor-grab"
-          style={{
-            top: `${position.y}px`,
-            left: `${position.x}px`,
-            height: `${imageHeight}px`,
-            backgroundImage: `url('/annotate.jpg')`,
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "contain",
-            cursor: isCtrlPressed ? "grab" : "crosshair",
-            opacity: isCtrlPressed ? "70%" : "100%",
-          }}
-        >
-          <AnnotateBoxContainer
-            scale={scale}
-            activity={activity}
-            setActivity={setActivity}
-            isCtrlPressed={isCtrlPressed}
-          />
+    <div>
+      <div
+        onMouseDown={handleMouseDownParent}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="bg-[#374151] w-[200vw] h-[200vh] relative overflow-hidden cursor-crosshair"
+      >
+        <ZoomableContainer zoom={scale} setZoom={setScale}>
+          <div
+            onMouseDown={handleMouseDown}
+            className="absolute w-[600px] cursor-grab"
+            style={{
+              top: `${position.y}px`,
+              left: `${position.x}px`,
+              height: `${imageHeight}px`,
+              backgroundImage: `url('/annotate.jpg')`,
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "contain",
+              cursor: isCtrlPressed ? "grab" : "crosshair",
+              opacity: isCtrlPressed ? "70%" : "100%",
+            }}
+          >
+            <div ref={containerRef} className="w-full h-full relative parent">
+              {boxes.map((box) => (
+                <div
+                  key={box.id}
+                  onMouseDown={(e) => handleBoxMouseDown(box, e)}
+                  className={`absolute ${
+                    selectedBox?.id === box.id ? "border-2" : "border"
+                  } z-10`}
+                  style={{
+                    left: box.top_x,
+                    top: box.top_y,
+                    width: Math.abs(box.bottom_x - box.top_x),
+                    height: Math.abs(box.bottom_y - box.top_y),
+                    backgroundColor: box.color + "22",
+                    borderColor: box.color,
+                  }}
+                />
+              ))}
+              {currentBox && (
+                <div
+                  className="absolute z-10 border border-dashed"
+                  style={{
+                    position: "absolute",
+                    left: currentBox.top_x,
+                    top: currentBox.top_y,
+                    width: Math.abs(currentBox.bottom_x - currentBox.top_x),
+                    height: Math.abs(currentBox.bottom_y - currentBox.top_y),
+                    backgroundColor: currentBox.color + "22",
+                    borderColor: currentBox.color,
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </ZoomableContainer>
+        {!isCtrlPressed && activity === "" && (
+          <PositionHelper mousePosition={mousePosition} />
+        )}
+      </div>
+
+      <div className="fixed left-0 h-16 right-0 top-0 bg-[#111827] z-20 border-b border-[#00FFCE]"></div>
+      <div className="fixed top-16 bottom-0 left-0 w-72 bg-[#1F2937] z-20 border-r border-[#00FFCE]">
+        <h3 className="text-sm text-[#00ffce] mx-4 my-5">Annotation</h3>
+        <div className="border-b border-gray-600 flex gap-6 px-6">
+          <button
+            onClick={() => setShowClasses(true)}
+            className={`${
+              showclasses
+                ? "text-[#00ffce] border-b-2 border-[#00ffce]"
+                : "text-gray-600 border-b-2 border-transparent"
+            }`}
+          >
+            CLASSES
+          </button>
+          <button
+            onClick={() => setShowClasses(false)}
+            className={`${
+              !showclasses
+                ? "text-[#00ffce] border-b-2 border-[#00ffce]"
+                : "text-gray-600 border-b-2 border-transparent"
+            }`}
+          >
+            LAYERS
+          </button>
         </div>
-      </ZoomableContainer>
-      {!isCtrlPressed && activity === "" && (
-        <PositionHelper mousePosition={mousePosition} />
-      )}
+        {showclasses ? (
+          <div className="mt-4">
+            {classess.map(({ name, color }, key) => (
+              <div
+                key={key}
+                onClick={() => setSelectedClass(key)}
+                className={`flex items-center justify-between px-4 py-2 cursor-pointer ${
+                  selectedClass === key ? "bg-[#4B5563]" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{ backgroundColor: color }}
+                    className="w-4 h-4 rounded-full"
+                  ></div>
+                  <div className="text-white">
+                    {key + 1}. <span className="ml-2">{name}</span>
+                  </div>
+                </div>
+                <div className="bg-[#E5E7EB] rounded-full min-w-6 text-center text-xs">
+                  {boxes.reduce(
+                    (acc, cur) => (cur.name === name ? acc + 1 : acc),
+                    0
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4">
+            {boxes.map((box, key) => (
+              <div
+                key={key}
+                onClick={() => setSelectedBox(box)}
+                className={`flex items-center justify-between px-4 py-2 cursor-pointer ${
+                  selectedBox?.id === box.id ? "bg-[#4B5563]" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{ backgroundColor: box.color }}
+                    className="w-4 h-4 rounded-full"
+                  ></div>
+                  <div style={{ color: box.color }}>
+                    <span className="ml-2">{box.name}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setBoxes((prev) =>
+                      prev.filter((item) => item.id !== box.id)
+                    );
+                  }}
+                  className="bg-[#E5E7EB] rounded-md text-center text-xs px-1"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
