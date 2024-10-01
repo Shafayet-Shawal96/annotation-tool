@@ -387,45 +387,33 @@ function App() {
                         onMouseDown={(e) =>
                           handleResizeMouseDown(box, "top-left", e)
                         }
-                        className={`-left-[4px] -top-[4px] w-2 h-2 absolute ${
+                        className={`-left-[4px] -top-[4px] w-2 h-2 absolute bg-white ${
                           isCtrlPressed ? "cursor-nw-resize" : ""
                         }`}
-                        style={{
-                          backgroundColor: box.color,
-                        }}
                       />
                       <div
                         onMouseDown={(e) =>
                           handleResizeMouseDown(box, "top-right", e)
                         }
-                        className={`-right-[4px] -top-[4px] w-2 h-2 absolute ${
+                        className={`-right-[4px] -top-[4px] w-2 h-2 absolute bg-white ${
                           isCtrlPressed ? "cursor-ne-resize" : ""
                         }`}
-                        style={{
-                          backgroundColor: box.color,
-                        }}
                       />
                       <div
                         onMouseDown={(e) =>
                           handleResizeMouseDown(box, "bottom-left", e)
                         }
-                        className={`-left-[4px] -bottom-[4px] w-2 h-2 absolute ${
+                        className={`-left-[4px] -bottom-[4px] w-2 h-2 absolute bg-white ${
                           isCtrlPressed ? "cursor-sw-resize" : ""
                         }`}
-                        style={{
-                          backgroundColor: box.color,
-                        }}
                       />
                       <div
                         onMouseDown={(e) =>
                           handleResizeMouseDown(box, "bottom-right", e)
                         }
-                        className={`-right-[4px] -bottom-[4px] w-2 h-2 absolute ${
+                        className={`-right-[4px] -bottom-[4px] w-2 h-2 absolute bg-white ${
                           isCtrlPressed ? "cursor-se-resize" : ""
                         }`}
-                        style={{
-                          backgroundColor: box.color,
-                        }}
                       />
                     </>
                   )}
