@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import ZoomableContainer from "./conponents/ZoomableContainer";
 import PositionHelper from "./conponents/PositionHelper";
 import { classess } from "./utils/variables";
+import uuid from "react-native-uuid";
 // import AnnotateBoxContainer from "./conponents/AnnotateBoxContainer";
 
 type Position = {
@@ -10,7 +11,7 @@ type Position = {
 };
 
 interface Box {
-  id: number;
+  id: string;
   start_x: number;
   start_y: number;
   end_x: number;
@@ -59,7 +60,7 @@ function App() {
       const y = e.clientY - containerRect.top;
 
       setCurrentBox({
-        id: boxes.length + 1,
+        id: uuid.v4() as string,
         color: classess[selectedClass].color,
         name: classess[selectedClass].name,
         start_x:
@@ -84,6 +85,7 @@ function App() {
     if (!e.ctrlKey) return;
 
     e.stopPropagation();
+    setShowClasses(false);
     setActivity("isDragging");
     setSelectedBox(box);
   };
@@ -101,11 +103,17 @@ function App() {
     if (activity !== "" && containerRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
       const currentX = Math.max(
-        Math.min((e.clientX - containerRect.left) / scale, containerRect.width),
+        Math.min(
+          (e.clientX - containerRect.left) / scale,
+          containerRect.width / scale
+        ),
         0
       );
       const currentY = Math.max(
-        Math.min((e.clientY - containerRect.top) / scale, containerRect.height),
+        Math.min(
+          (e.clientY - containerRect.top) / scale,
+          containerRect.height / scale
+        ),
         0
       );
 
@@ -278,6 +286,19 @@ function App() {
   };
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Delete" && selectedBox !== null) {
+        setBoxes((prev) => prev.filter((item) => item.id !== selectedBox.id));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedBox]);
+
+  useEffect(() => {
     window.scrollTo({
       top: window.innerHeight / 2,
       left: window.innerWidth / 2,
@@ -296,7 +317,7 @@ function App() {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey) {
+      if (event) {
         setIsCtrlPressed(true);
       }
       const validKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -500,12 +521,12 @@ function App() {
           </button>
         </div>
         {showclasses ? (
-          <div className="mt-4 px-4">
+          <div className="mt-4">
             {classess.map(({ name, color }, key) => (
               <div
                 key={key}
                 onClick={() => setSelectedClass(key)}
-                className={`flex items-center justify-between py-2 cursor-pointer hover:bg-[#4B5563] ${
+                className={`flex items-center justify-between py-2 cursor-pointer hover:bg-[#4B5563] px-4 ${
                   selectedClass === key ? "bg-[#4B5563]" : ""
                 }`}
               >
