@@ -11,13 +11,19 @@ type Position = {
 
 interface Box {
   id: number;
-  top_x: number;
-  top_y: number;
-  bottom_x: number;
-  bottom_y: number;
+  start_x: number;
+  start_y: number;
+  end_x: number;
+  end_y: number;
   name: string;
   color: string;
 }
+
+type ResizeDirection =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
 
 function App() {
   const [imageHeight, setImageHeight] = useState(0);
@@ -39,6 +45,8 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedBox, setSelectedBox] = useState<Box | null>(null);
   const [selectedClass, setSelectedClass] = useState(0);
+  const [resizeDirection, setResizeDirection] =
+    useState<ResizeDirection | null>(null);
 
   const handleMouseDownParent = (e: React.MouseEvent) => {
     if (e.ctrlKey) return;
@@ -54,16 +62,16 @@ function App() {
         id: boxes.length + 1,
         color: classess[selectedClass].color,
         name: classess[selectedClass].name,
-        top_x:
+        start_x:
           (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
           scale,
-        top_y:
+        start_y:
           (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
           scale,
-        bottom_x:
+        end_x:
           (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
           scale,
-        bottom_y:
+        end_y:
           (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
           scale,
       });
@@ -102,31 +110,11 @@ function App() {
       );
 
       if (activity === "isDrawing" && currentBox && !e.ctrlKey) {
-        if (currentX > currentBox.top_x && currentY > currentBox.top_y) {
-          setCurrentBox({
-            ...currentBox,
-            bottom_x: currentX,
-            bottom_y: currentY,
-          });
-        } else if (currentX < currentBox.top_x && currentY < currentBox.top_y) {
-          setCurrentBox({
-            ...currentBox,
-            top_x: currentX,
-            top_y: currentY,
-          });
-        } else if (currentX > currentBox.top_x && currentY < currentBox.top_y) {
-          setCurrentBox({
-            ...currentBox,
-            bottom_x: currentX,
-            top_y: currentY,
-          });
-        } else if (currentX < currentBox.top_x && currentY > currentBox.top_y) {
-          setCurrentBox({
-            ...currentBox,
-            top_x: currentX,
-            bottom_y: currentY,
-          });
-        }
+        setCurrentBox({
+          ...currentBox,
+          end_x: currentX,
+          end_y: currentY,
+        });
       }
 
       if (activity === "isDragging" && selectedBox && e.ctrlKey) {
@@ -139,26 +127,97 @@ function App() {
               const newX = Math.max(
                 0,
                 Math.min(
-                  box.top_x + deltaX,
+                  box.start_x + deltaX,
                   containerRect.width / scale -
-                    Math.abs(box.top_x - box.bottom_x)
+                    Math.abs(box.start_x - box.end_x)
                 )
               );
               const newY = Math.max(
                 0,
                 Math.min(
-                  box.top_y + deltaY,
+                  box.start_y + deltaY,
                   containerRect.height / scale -
-                    Math.abs(box.top_y - box.bottom_y)
+                    Math.abs(box.start_y - box.end_y)
                 )
               );
               return {
                 ...box,
-                top_x: newX,
-                top_y: newY,
-                bottom_x: box.bottom_x - (box.top_x - newX),
-                bottom_y: box.bottom_y - (box.top_y - newY),
+                start_x: newX,
+                start_y: newY,
+                end_x: box.end_x - (box.start_x - newX),
+                end_y: box.end_y - (box.start_y - newY),
               };
+            }
+            return box;
+          })
+        );
+      }
+
+      if (
+        activity === "isResizing" &&
+        selectedBox &&
+        resizeDirection &&
+        e.ctrlKey
+      ) {
+        setBoxes((prevBoxes) =>
+          prevBoxes.map((box) => {
+            if (box.id === selectedBox!.id) {
+              let newBox: Box | null = null;
+
+              switch (resizeDirection) {
+                case "top-left": {
+                  newBox = {
+                    ...box,
+                    start_x: Math.min(
+                      currentX,
+                      box.start_x + Math.abs(box.start_x - box.end_x)
+                    ),
+                    start_y: Math.min(
+                      currentY,
+                      box.start_y + Math.abs(box.start_y - box.end_y)
+                    ),
+                  };
+                  break;
+                }
+                case "top-right": {
+                  newBox = {
+                    ...box,
+                    start_y: Math.min(
+                      currentY,
+                      box.start_y + Math.abs(box.start_y - box.end_y)
+                    ),
+                    end_x: box.start_x + Math.max(currentX - box.start_x, 0),
+                  };
+                  break;
+                }
+                case "bottom-left": {
+                  newBox = {
+                    ...box,
+                    end_y: Math.min(
+                      currentY,
+                      box.end_y + Math.abs(box.end_y - box.start_y)
+                    ),
+                    start_x: currentX,
+                  };
+                  break;
+                }
+                case "bottom-right": {
+                  newBox = {
+                    ...box,
+                    end_x: Math.min(
+                      currentX,
+                      box.end_x + Math.abs(box.end_x - box.start_x)
+                    ),
+                    end_y: Math.min(
+                      currentY,
+                      box.end_y + Math.abs(box.end_y - box.start_y)
+                    ),
+                  };
+                  break;
+                }
+              }
+
+              return newBox ?? box;
             }
             return box;
           })
@@ -184,18 +243,38 @@ function App() {
     if (activity === "isDrawing" && currentBox) {
       if (
         !(
-          currentBox?.top_x === currentBox?.bottom_x &&
-          currentBox?.top_y === currentBox?.bottom_y
+          currentBox?.start_x === currentBox?.end_x &&
+          currentBox?.start_y === currentBox?.end_y
         )
       ) {
-        setBoxes((prev) => [...prev, currentBox]);
+        setBoxes((prev) => [
+          ...prev,
+          {
+            ...currentBox,
+            start_x: Math.min(currentBox.start_x, currentBox.end_x),
+            start_y: Math.min(currentBox.start_y, currentBox.end_y),
+            end_x: Math.max(currentBox.start_x, currentBox.end_x),
+            end_y: Math.max(currentBox.start_y, currentBox.end_y),
+          },
+        ]);
       }
       setCurrentBox(null);
+    }
+    if (activity) {
       setActivity("");
     }
-    if (activity === "isDragging") {
-      setActivity("");
-    }
+  };
+
+  const handleResizeMouseDown = (
+    box: Box,
+    direction: ResizeDirection,
+    e: React.MouseEvent
+  ) => {
+    if (!e.ctrlKey) return;
+    e.stopPropagation();
+    setActivity("isResizing");
+    setResizeDirection(direction);
+    setSelectedBox(box);
   };
 
   useEffect(() => {
@@ -210,7 +289,7 @@ function App() {
     img.onload = () => {
       const height = (img.naturalHeight / img.naturalWidth) * 600;
       setPosition({
-        x: window.innerWidth - 300,
+        x: window.innerWidth - 150,
         y: window.innerHeight - height / 2,
       });
       setImageHeight(height);
@@ -222,7 +301,7 @@ function App() {
       }
       const validKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
       if (validKeys.includes(event.key)) {
-        setSelectedClass(+event.key - 1);
+        if (+event.key <= classess.length) setSelectedClass(+event.key - 1);
       }
     };
 
@@ -247,7 +326,6 @@ function App() {
         onMouseDown={handleMouseDownParent}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         className="bg-[#374151] w-[200vw] h-[200vh] relative overflow-hidden cursor-crosshair"
       >
         <ZoomableContainer zoom={scale} setZoom={setScale}>
@@ -274,24 +352,73 @@ function App() {
                     selectedBox?.id === box.id ? "border-2" : "border"
                   } z-10`}
                   style={{
-                    left: box.top_x,
-                    top: box.top_y,
-                    width: Math.abs(box.bottom_x - box.top_x),
-                    height: Math.abs(box.bottom_y - box.top_y),
+                    left: Math.min(box.start_x, box.end_x),
+                    top: Math.min(box.start_y, box.end_y),
+                    width: Math.abs(box.end_x - box.start_x),
+                    height: Math.abs(box.end_y - box.start_y),
                     backgroundColor: box.color + "22",
                     borderColor: box.color,
                   }}
-                />
+                >
+                  {selectedBox?.id === box.id && (
+                    <>
+                      <div
+                        onMouseDown={(e) =>
+                          handleResizeMouseDown(box, "top-left", e)
+                        }
+                        className={`-left-[4px] -top-[4px] w-2 h-2 absolute ${
+                          isCtrlPressed ? "cursor-nw-resize" : ""
+                        }`}
+                        style={{
+                          backgroundColor: box.color,
+                        }}
+                      />
+                      <div
+                        onMouseDown={(e) =>
+                          handleResizeMouseDown(box, "top-right", e)
+                        }
+                        className={`-right-[4px] -top-[4px] w-2 h-2 absolute ${
+                          isCtrlPressed ? "cursor-ne-resize" : ""
+                        }`}
+                        style={{
+                          backgroundColor: box.color,
+                        }}
+                      />
+                      <div
+                        onMouseDown={(e) =>
+                          handleResizeMouseDown(box, "bottom-left", e)
+                        }
+                        className={`-left-[4px] -bottom-[4px] w-2 h-2 absolute ${
+                          isCtrlPressed ? "cursor-sw-resize" : ""
+                        }`}
+                        style={{
+                          backgroundColor: box.color,
+                        }}
+                      />
+                      <div
+                        onMouseDown={(e) =>
+                          handleResizeMouseDown(box, "bottom-right", e)
+                        }
+                        className={`-right-[4px] -bottom-[4px] w-2 h-2 absolute ${
+                          isCtrlPressed ? "cursor-se-resize" : ""
+                        }`}
+                        style={{
+                          backgroundColor: box.color,
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
               ))}
               {currentBox && (
                 <div
                   className="absolute z-10 border border-dashed"
                   style={{
                     position: "absolute",
-                    left: currentBox.top_x,
-                    top: currentBox.top_y,
-                    width: Math.abs(currentBox.bottom_x - currentBox.top_x),
-                    height: Math.abs(currentBox.bottom_y - currentBox.top_y),
+                    left: Math.min(currentBox.start_x, currentBox.end_x),
+                    top: Math.min(currentBox.start_y, currentBox.end_y),
+                    width: Math.abs(currentBox.end_x - currentBox.start_x),
+                    height: Math.abs(currentBox.end_y - currentBox.start_y),
                     backgroundColor: currentBox.color + "22",
                     borderColor: currentBox.color,
                   }}
@@ -306,6 +433,48 @@ function App() {
       </div>
 
       <div className="fixed left-0 h-16 right-0 top-0 bg-[#111827] z-20 border-b border-[#00FFCE]"></div>
+      {selectedBox && (
+        <div className="fixed top-[76px] left-[300px] w-72 bg-[#1F2937] z-20 border border-[#00FFCE]">
+          <div className="my-4">
+            <div className="flex items-center justify-between mx-4 mb-4">
+              <h3 className="text-sm text-[#00ffce]">Change Class</h3>
+              <button
+                onClick={() => setSelectedBox(null)}
+                className="bg-[#E5E7EB] rounded-md text-center text-xs px-1"
+              >
+                Close
+              </button>
+            </div>
+            {classess.map(({ name, color }, key) => (
+              <div
+                key={key}
+                onClick={() => {
+                  setBoxes((prev) =>
+                    prev.map((box) =>
+                      box.id === selectedBox.id ? { ...box, name, color } : box
+                    )
+                  );
+                  setSelectedBox(null);
+                }}
+                className={`flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-[#4B5563] ${
+                  selectedBox.name === name ? "bg-[#4B5563]" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{ backgroundColor: color }}
+                    className="w-4 h-4 rounded-full"
+                  ></div>
+                  <div className="text-white">
+                    {key + 1}. <span className="ml-2">{name}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="fixed top-16 bottom-0 left-0 w-72 bg-[#1F2937] z-20 border-r border-[#00FFCE]">
         <h3 className="text-sm text-[#00ffce] mx-4 my-5">Annotation</h3>
         <div className="border-b border-gray-600 flex gap-6 px-6">
@@ -331,12 +500,12 @@ function App() {
           </button>
         </div>
         {showclasses ? (
-          <div className="mt-4">
+          <div className="mt-4 px-4">
             {classess.map(({ name, color }, key) => (
               <div
                 key={key}
                 onClick={() => setSelectedClass(key)}
-                className={`flex items-center justify-between px-4 py-2 cursor-pointer ${
+                className={`flex items-center justify-between py-2 cursor-pointer hover:bg-[#4B5563] ${
                   selectedClass === key ? "bg-[#4B5563]" : ""
                 }`}
               >
@@ -364,7 +533,7 @@ function App() {
               <div
                 key={key}
                 onClick={() => setSelectedBox(box)}
-                className={`flex items-center justify-between px-4 py-2 cursor-pointer ${
+                className={`flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-[#4B5563] ${
                   selectedBox?.id === box.id ? "bg-[#4B5563]" : ""
                 }`}
               >
