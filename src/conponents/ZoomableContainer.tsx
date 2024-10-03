@@ -3,7 +3,7 @@ import React, { useState, useRef, useCallback } from "react";
 interface ZoomableContainerProps {
   children: React.ReactNode;
   zoom: number;
-  setZoom: React.Dispatch<React.SetStateAction<number>>;
+  setZoom: (scale: number) => void;
 }
 
 const ZoomableContainer: React.FC<ZoomableContainerProps> = ({
