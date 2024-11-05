@@ -5,7 +5,7 @@ import { classess } from "../utils/variables";
 const SelectedBoxOptions = observer(() => {
   if (!state.selectedBox) return <></>;
   return (
-    <div className="fixed top-[76px] left-[300px] w-72 bg-[#1F2937] z-20 border border-[#00FFCE]">
+    <div className="fixed top-[76px] left-[300px] w-72 bg-[#1F2937] z-20 border border-[#00FFCE] rounded-xl">
       <div className="my-4">
         <div className="flex items-center justify-between mx-4 mb-4">
           <h3 className="text-sm text-[#00ffce]">Change Class</h3>

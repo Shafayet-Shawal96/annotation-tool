@@ -1,28 +1,22 @@
 import React from "react";
+import { state } from "../states/AnnotationState";
+import { observer } from "mobx-react-lite";
 
-function PositionHelper({
-  mousePosition,
-}: {
-  mousePosition: { x: number; y: number };
-}) {
+export const PositionHelper = observer(function PositionHelper() {
   return (
     <>
       <div
-        className="absolute left-0 top-0 z-10 border-r-2 border-b-2 border-white border-dashed"
+        className="pointer-events-none absolute left-0 z-10 w-full backdrop-invert h-0.5 opacity-70"
         style={{
-          right: window.innerWidth * 2 - mousePosition.x + 1,
-          bottom: window.innerHeight * 2 - mousePosition.y - 4,
+          top: state.mousePosition.y,
         }}
       ></div>
       <div
-        className="absolute right-0 bottom-0 z-10 border-t-2 border-l-2 border-white border-dashed"
+        className="pointer-events-none absolute top-0 z-10 backdrop-invert w-0.5 h-full opacity-70"
         style={{
-          left: mousePosition.x - 3,
-          top: mousePosition.y + 2,
+          left: state.mousePosition.x,
         }}
       ></div>
     </>
   );
-}
-
-export default PositionHelper;
+});

@@ -22,7 +22,7 @@ const BoxesContainer = observer(
         }}
       >
         <div ref={ref} className="w-full h-full relative parent">
-          {state.boxes.map((box) => (
+          {/* {state.boxes.map((box) => (
             <BoxesComponent
               key={box.id}
               box={box}
@@ -31,8 +31,8 @@ const BoxesContainer = observer(
               handleBoxMouseDown={state.handleBoxMouseDown}
               handleResizeMouseDown={state.handleResizeMouseDown}
             />
-          ))}
-          <NewBoxComponent />
+          ))} */}
+          {/* <NewBoxComponent /> */}
         </div>
       </div>
     );

@@ -29,7 +29,7 @@ const BoxesComponent = ({
         top: Math.min(box.start_y, box.end_y),
         width: Math.abs(box.end_x - box.start_x),
         height: Math.abs(box.end_y - box.start_y),
-        backgroundColor: box.color + "22",
+        backgroundColor: box.color + "44",
         borderColor: box.color,
       }}
     >

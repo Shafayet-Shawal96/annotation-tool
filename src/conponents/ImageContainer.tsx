@@ -1,110 +1,141 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import ZoomableContainer from "./ZoomableContainer";
-// import PositionHelper from "./PositionHelper";
 import { classess } from "../utils/variables";
 import uuid from "react-native-uuid";
 import { observer } from "mobx-react-lite";
 import { state } from "../states/AnnotationState";
 import BoxesContainer from "./BoxesContainer";
-import PositionHelper from "./PositionHelper";
+import { PositionHelper } from "./PositionHelper";
 
-const ImageContainer = observer(() => {
+const INITIAL_PADDING: number = 50;
+
+export const ImageContainer = observer(function ImageContainer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDownParent = (e: React.MouseEvent) => {
-    if (e.ctrlKey) return;
     e.stopPropagation();
 
-    if (!state.activity && containerRef.current) {
-      state.setSelectedBoxNull();
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const x = e.clientX - containerRect.left;
-      const y = e.clientY - containerRect.top;
-
-      state.setNewBox({
-        id: uuid.v4() as string,
-        color: classess[state.selectedClassIndex].color,
-        name: classess[state.selectedClassIndex].name,
-        start_x:
-          (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
-          state.scale,
-        start_y:
-          (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
-          state.scale,
-        end_x:
-          (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
-          state.scale,
-        end_y:
-          (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
-          state.scale,
-      });
-
-      state.setActivity("isDrawing");
+    if (!containerRef.current) {
+      return;
     }
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+
+    const relativePosition = {
+      x: e.clientX - containerRect.x,
+      y: e.clientY - containerRect.y,
+    };
+
+    if (e.shiftKey) {
+      state.startPan(relativePosition);
+      state.setActivity("pan");
+    }
+
+    // if (!state.activity && containerRef.current) {
+    // state.setSelectedBoxNull();
+    // const containerRect = containerRef.current.getBoundingClientRect();
+    // const x = e.clientX - containerRect.left;
+    // const y = e.clientY - containerRect.top;
+
+    // state.setNewBox({
+    //   id: uuid.v4() as string,
+    //   color: classess[state.selectedClassIndex].color,
+    //   name: classess[state.selectedClassIndex].name,
+    //   start_x:
+    //     (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
+    //     state.scale,
+    //   start_y:
+    //     (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
+    //     state.scale,
+    //   end_x:
+    //     (x < 0 ? 0 : x > containerRect.width ? containerRect.width : x) /
+    //     state.scale,
+    //   end_y:
+    //     (y < 0 ? 0 : y > containerRect.height ? containerRect.height : y) /
+    //     state.scale,
+    // });
+
+    // state.setActivity("isDrawing");
+    // }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (state.activity && containerRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const currentX = Math.max(
-        Math.min(
-          (e.clientX - containerRect.left) / state.scale,
-          containerRect.width / state.scale
-        ),
-        0
-      );
-      const currentY = Math.max(
-        Math.min(
-          (e.clientY - containerRect.top) / state.scale,
-          containerRect.height / state.scale
-        ),
-        0
-      );
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      if (!containerRef.current) {
+        return;
+      }
 
-      if (state.activity === "isDrawing" && state.newBox && !e.ctrlKey) {
-        state.setNewBox({
-          ...state.newBox,
-          end_x: currentX,
-          end_y: currentY,
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      const relativePosition = {
+        x: e.clientX - containerRect.x,
+        y: e.clientY - containerRect.y,
+      };
+
+      state.setMousePosition(relativePosition);
+
+      if (state.activity) {
+        const currentX = Math.max(
+          Math.min(
+            (e.clientX - containerRect.left) / state.scale,
+            containerRect.width / state.scale
+          ),
+          0
+        );
+        const currentY = Math.max(
+          Math.min(
+            (e.clientY - containerRect.top) / state.scale,
+            containerRect.height / state.scale
+          ),
+          0
+        );
+
+        if (state.activity === "isDrawing" && state.newBox && !e.ctrlKey) {
+          state.setNewBox({
+            ...state.newBox,
+            end_x: currentX,
+            end_y: currentY,
+          });
+        }
+
+        if (state.activity === "isDragging" && state.selectedBox && e.ctrlKey) {
+          const deltaX = e.movementX / state.scale;
+          const deltaY = e.movementY / state.scale;
+
+          state.moveBox(
+            deltaX,
+            deltaY,
+            containerRect.width,
+            containerRect.height
+          );
+        }
+
+        if (
+          state.activity === "isResizing" &&
+          state.selectedBox &&
+          state.resizeDirection &&
+          e.ctrlKey
+        ) {
+          state.resizeBox(currentX, currentY);
+        }
+      }
+
+      if (e.ctrlKey && state.imageContainerOffset) {
+        state.setImageContainerPosition({
+          x: e.clientX - state.imageContainerOffset.x,
+
+          y: e.clientY - state.imageContainerOffset.y,
         });
       }
-
-      if (state.activity === "isDragging" && state.selectedBox && e.ctrlKey) {
-        const deltaX = e.movementX / state.scale;
-        const deltaY = e.movementY / state.scale;
-
-        state.moveBox(
-          deltaX,
-          deltaY,
-          containerRect.width,
-          containerRect.height
-        );
-      }
-
-      if (
-        state.activity === "isResizing" &&
-        state.selectedBox &&
-        state.resizeDirection &&
-        e.ctrlKey
-      ) {
-        state.resizeBox(currentX, currentY);
-      }
-    }
-    if (e.ctrlKey && state.imageContainerOffset) {
-      state.setImageContainerPosition({
-        x: e.clientX - state.imageContainerOffset.x,
-
-        y: e.clientY - state.imageContainerOffset.y,
-      });
-    }
-
-    state.setMousePosition({
-      x: e.pageX,
-      y: e.pageY,
-    });
-  };
+    },
+    []
+  );
 
   const handleMouseUp = () => {
+    if (state.activity === "pan") {
+      state.endPan();
+    }
+
     if (state.activity === "isDrawing" && state.newBox) {
       if (
         !(
@@ -127,28 +158,39 @@ const ImageContainer = observer(() => {
   };
 
   useEffect(() => {
-    window.scrollTo({
-      top: window.innerHeight / 2,
-      left: window.innerWidth / 2,
-    });
+    const rect = containerRef.current!.getBoundingClientRect();
+
+    state.setContainerDimensions(rect.width, rect.height);
 
     const img = new Image();
     img.src = "/annotate.jpg";
 
     img.onload = () => {
-      const height = (img.naturalHeight / img.naturalWidth) * 600;
-      state.setImageContainerPosition({
-        x: window.innerWidth - 150,
-        y: window.innerHeight - height / 2,
-      });
-      state.setImageHeight(height);
+      const containerRatio = rect.width / rect.height;
+      const imageRatio = img.naturalWidth / img.naturalHeight;
+
+      if (imageRatio > containerRatio) {
+        const availableWidth = rect.width - INITIAL_PADDING * 2;
+        const initialScale = availableWidth / img.naturalWidth;
+
+        state.setScaleOffset(initialScale);
+      } else {
+        const availableHeight = rect.height - INITIAL_PADDING * 2;
+        const initialScale = availableHeight / img.naturalHeight;
+
+        state.setScaleOffset(initialScale);
+      }
+
+      state.setImageDimensions(img.naturalWidth, img.naturalHeight);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const validKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
       if (validKeys.includes(event.key)) {
-        if (+event.key <= classess.length)
+        if (+event.key <= classess.length) {
           state.setSelectedClassIndex(+event.key - 1);
+        }
       } else {
         state.handleKeyDownEvent(event);
       }
@@ -162,21 +204,40 @@ const ImageContainer = observer(() => {
       window.removeEventListener("keyup", state.handleKeyUpEvent);
     };
   }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (!e.ctrlKey) {
+      return;
+    }
+
+    if (e.deltaY > 0) {
+      state.zoomOut();
+    } else {
+      state.zoomIn();
+    }
+  }, []);
+
   return (
     <div
       onMouseDown={handleMouseDownParent}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      className="bg-[#374151] w-[200vw] h-[200vh] relative overflow-hidden cursor-crosshair"
+      onWheel={handleWheel}
+      className="bg-slate-700 w-full h-full relative overflow-clip cursor-crosshair"
+      ref={containerRef}
     >
-      <ZoomableContainer zoom={state.scale} setZoom={state.setScale}>
-        <BoxesContainer ref={containerRef} />
-      </ZoomableContainer>
-      {!state.ctrlKeyPressed && !state.activity && (
-        <PositionHelper mousePosition={state.mousePosition} />
-      )}
+      {/* <ZoomableContainer zoom={state.scale} setZoom={state.setScale}>
+        <BoxesContainer />
+      </ZoomableContainer> */}
+      <img
+        src={"/annotate.jpg"}
+        className="absolute pointer-events-none"
+        style={{
+          ...state.finalImageDimensions,
+          ...state.finalImagePosition,
+        }}
+      />
+      {!state.ctrlKeyPressed && !state.activity && <PositionHelper />}
     </div>
   );
 });
-
-export default ImageContainer;
